@@ -6,18 +6,25 @@ import org.assertj.core.api.SoftAssertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import javax.persistence.EntityManager;
+import javax.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
 class Datajpa1629ApplicationTests {
 
 	@Autowired
 	MyEntityRepository repo;
+
+	@Autowired
+	EntityManager em;
+
+	@Autowired
+	TransactionTemplate tx;
 
 	@Test
 	void contextLoads() {
@@ -58,19 +65,36 @@ class Datajpa1629ApplicationTests {
 		return saved.getLocalDate();
 	}
 
+	private LocalDate saveAndReloadWithEm(LocalDate currentDate) {
+
+		MyEntity entity = createInstanceForDate(currentDate);
+		tx.executeWithoutResult(ts -> em.persist(entity));
+		MyEntity saved = tx.execute(ts -> em.find(MyEntity.class, entity.getId()));
+		return saved.getLocalDate();
+	}
+
 	@Test
 	void reproduceWithSpringData() {
 
 		SoftAssertions.assertSoftly(softly -> {
-		check(softly, this::saveAndReload, "1893-04-01", 1L);
-		check(softly,this::saveAndReload,"1893-04-02", 0L);
+			check(softly, this::saveAndReload, "1893-04-01", 1L);
+			check(softly, this::saveAndReload, "1893-04-02", 0L);
+		});
+	}
+
+	@Test
+	void reproduceWithEm() {
+
+		SoftAssertions.assertSoftly(softly -> {
+			check(softly, this::saveAndReloadWithEm, "1893-04-01", 1L);
+			check(softly, this::saveAndReloadWithEm, "1893-04-02", 0L);
 		});
 	}
 
 	private void check(SoftAssertions softly, Function<LocalDate, LocalDate> saveAndReload, String date, long expectedDifference) {
 
 		LocalDate testDate = LocalDate.parse(date);
-		softly.assertThat(ChronoUnit.DAYS.between( saveAndReload.apply(testDate), testDate))
+		softly.assertThat(ChronoUnit.DAYS.between(saveAndReload.apply(testDate), testDate))
 				.describedAs(date + " should show a difference of " + expectedDifference)
 				.isEqualTo(expectedDifference);
 	}

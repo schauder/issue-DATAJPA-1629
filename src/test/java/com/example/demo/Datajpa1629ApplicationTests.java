@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -50,6 +51,7 @@ class Datajpa1629ApplicationTests {
 	}
 
 	private LocalDate saveAndReload(LocalDate currentDate) {
+
 		MyEntity entity = createInstanceForDate(currentDate);
 		repo.save(entity);
 		MyEntity saved = repo.findById(entity.getId()).get();
@@ -58,15 +60,17 @@ class Datajpa1629ApplicationTests {
 
 	@Test
 	void reproduceWithSpringData() {
+
 		SoftAssertions.assertSoftly(softly -> {
-		check(softly, "1893-04-01", 1L);
-		check(softly,"1893-04-02", 0L);
+		check(softly, this::saveAndReload, "1893-04-01", 1L);
+		check(softly,this::saveAndReload,"1893-04-02", 0L);
 		});
 	}
 
-	private void check(SoftAssertions softly, String date, long expectedDifference) {
+	private void check(SoftAssertions softly, Function<LocalDate, LocalDate> saveAndReload, String date, long expectedDifference) {
+
 		LocalDate testDate = LocalDate.parse(date);
-		softly.assertThat(ChronoUnit.DAYS.between( saveAndReload(testDate), testDate))
+		softly.assertThat(ChronoUnit.DAYS.between( saveAndReload.apply(testDate), testDate))
 				.describedAs(date + " should show a difference of " + expectedDifference)
 				.isEqualTo(expectedDifference);
 	}

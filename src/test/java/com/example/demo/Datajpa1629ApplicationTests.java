@@ -2,6 +2,7 @@ package com.example.demo;
 
 import com.example.demo.entity.MyEntity;
 import com.example.demo.repository.MyEntityRepository;
+import org.assertj.core.api.SoftAssertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -57,14 +58,17 @@ class Datajpa1629ApplicationTests {
 
 	@Test
 	void reproduceWithSpringData() {
-
-		check("1893-04-01", 1L);
-		check("1893-04-02", 0L);
+		SoftAssertions.assertSoftly(softly -> {
+		check(softly, "1893-04-01", 1L);
+		check(softly,"1893-04-02", 0L);
+		});
 	}
 
-	private void check(String date, long expectedDifferenc) {
+	private void check(SoftAssertions softly, String date, long expectedDifference) {
 		LocalDate testDate = LocalDate.parse(date);
-		assertThat(ChronoUnit.DAYS.between( saveAndReload(testDate), testDate)).isEqualTo(expectedDifferenc);
+		softly.assertThat(ChronoUnit.DAYS.between( saveAndReload(testDate), testDate))
+				.describedAs(date + " should show a difference of " + expectedDifference)
+				.isEqualTo(expectedDifference);
 	}
 
 

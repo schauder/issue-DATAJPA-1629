@@ -9,7 +9,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.function.Function;
@@ -59,7 +58,7 @@ class Datajpa1629ApplicationTests {
 
 	private LocalDate saveAndReload(LocalDate currentDate) {
 
-		MyEntity entity = createInstanceForDate(currentDate);
+		MyEntity entity = TestUtil.createInstanceForDate(currentDate);
 		repo.save(entity);
 		MyEntity saved = repo.findById(entity.getId()).get();
 		return saved.getLocalDate();
@@ -67,7 +66,7 @@ class Datajpa1629ApplicationTests {
 
 	private LocalDate saveAndReloadWithEm(LocalDate currentDate) {
 
-		MyEntity entity = createInstanceForDate(currentDate);
+		MyEntity entity = TestUtil.createInstanceForDate(currentDate);
 		tx.executeWithoutResult(ts -> em.persist(entity));
 		MyEntity saved = tx.execute(ts -> em.find(MyEntity.class, entity.getId()));
 		return saved.getLocalDate();
@@ -94,17 +93,9 @@ class Datajpa1629ApplicationTests {
 	private void check(SoftAssertions softly, Function<LocalDate, LocalDate> saveAndReload, String date, long expectedDifference) {
 
 		LocalDate testDate = LocalDate.parse(date);
-		softly.assertThat(ChronoUnit.DAYS.between(saveAndReload.apply(testDate), testDate))
-				.describedAs(date + " should show a difference of " + expectedDifference)
-				.isEqualTo(expectedDifference);
+		LocalDate reloaded = saveAndReload.apply(testDate);
+		TestUtil.compare(softly, date, testDate, reloaded, expectedDifference);
 	}
 
-
-	private MyEntity createInstanceForDate(LocalDate date) {
-		MyEntity entity = new MyEntity();
-		entity.setLocalDate(date);
-
-		return entity;
-	}
 
 }

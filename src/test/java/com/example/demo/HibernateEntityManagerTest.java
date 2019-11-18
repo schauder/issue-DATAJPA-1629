@@ -1,40 +1,43 @@
 package com.example.demo;
 
-import java.time.LocalDate;
+import com.example.demo.entity.MyEntity;
+import org.junit.jupiter.api.Test;
 
 import javax.persistence.EntityManager;
 import javax.persistence.EntityManagerFactory;
+import javax.persistence.EntityTransaction;
 import javax.persistence.Persistence;
+import java.time.LocalDate;
 
-import org.junit.jupiter.api.Test;
+class HibernateEntityManagerTest {
 
-import com.example.demo.entity.MyEntity;
+	@Test
+	void reproduceWithEntityManagerSeparateTransaction() {
+		EntityManagerFactory emf = Persistence.createEntityManagerFactory("com.example.myentity");
+		EntityManager em = emf.createEntityManager();
 
-public class HibernateEntityManagerTest {
+		LocalDate date = LocalDate.parse("1890-09-30");
+		MyEntity entity = createInstanceForDate(date);
 
-    @Test
-    void reproduceWithEntityManagerSeparateTransaction() {
-        EntityManagerFactory emf = Persistence.createEntityManagerFactory("com.example.myentity");
-        EntityManager em = emf.createEntityManager();
+		EntityTransaction tx = em.getTransaction();
+		tx.begin();
+		em.persist(entity);
+		tx.commit();
 
-        MyEntity entity = createInstanceForDate(LocalDate.parse("1890-09-30"));
+		em = emf.createEntityManager();
+		tx = em.getTransaction();
+		tx.begin();
+		MyEntity saved = em.find(MyEntity.class, entity.getId());
+		tx.commit();
 
-        em.getTransaction().begin();
-        em.persist(entity);
-        em.getTransaction().commit();
+		TestUtil.compare(date, saved.getLocalDate(), 1L);
+	}
 
-        em.getTransaction().begin();
-        MyEntity saved = em.find(MyEntity.class, entity.getId());
-        em.getTransaction().commit();
+	private MyEntity createInstanceForDate(LocalDate date) {
+		MyEntity entity = new MyEntity();
+		entity.setLocalDate(date);
 
-        System.out.println("reproduceWithEntityManagerSeparateTransaction(): " + entity + " - " + saved);
-    }
-
-    private MyEntity createInstanceForDate(LocalDate date) {
-        MyEntity entity = new MyEntity();
-        entity.setLocalDate(date);
-
-        return entity;
-    }
+		return entity;
+	}
 
 }
